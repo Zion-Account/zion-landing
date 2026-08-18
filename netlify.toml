@@ -1,0 +1,29 @@
+# netlify.toml - Netlify configuration for a pnpm workspace
+# IMPORTANT: Replace <PACKAGE_PATH> and <PUBLISH_DIR> with the package path and build output for your site.
+# Example: if your site package is at artifacts/landing and build output is dist, set
+#   publish = "artifacts/landing/dist"
+
+[build]
+  # Use corepack to enable pnpm, install with frozen lockfile, then run the workspace build
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm run build"
+  # Replace with the actual package build output folder produced by your workspace package
+  publish = "artifacts/<PACKAGE_PATH>/<PUBLISH_DIR>"
+
+[context.production.environment]
+  # Set Node version to match local dev if needed
+  NODE_VERSION = "18"
+
+# Single-page app redirect: send all paths to index.html (prevents 404s on client-side routes)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
+
+# NOTES:
+# - If you prefer building only the package, set the Netlify "Base directory" to
+#   artifacts/<PACKAGE_PATH>, then change `command` to "corepack enable && pnpm install && pnpm run build"
+#   and set publish = "<PUBLISH_DIR>".
+# - After committing, update the `publish` path above (or Base directory) in Netlify Site settings
+#   to the folder that contains index.html produced by your build (run `find . -name index.html` locally
+#   after building to locate it).
