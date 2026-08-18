@@ -1,11 +1,16 @@
 # netlify.toml - Netlify configuration for a pnpm workspace
+# This version avoids running the root workspace typecheck/build which fails
+# when non-artifact workspace packages (e.g., lib/*) are not present on Netlify.
 # IMPORTANT: Replace <PACKAGE_PATH> and <PUBLISH_DIR> with the package path and build output for your site.
 # Example: if your site package is at artifacts/landing and build output is dist, set
 #   publish = "artifacts/landing/dist"
 
 [build]
-  # Use corepack to enable pnpm, install with frozen lockfile, then run the workspace build
-  command = "corepack enable && pnpm install --frozen-lockfile && pnpm run build"
+  # Use corepack to enable pnpm, install with frozen lockfile, then build only packages under artifacts/*
+  # We avoid `pnpm run build` at the workspace root since it runs a typecheck across lib/* which is
+  # not present in the Netlify checkout and causes tsc errors (TS5083).
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm -w --filter \"./artifacts/**\" --if-present run build"
+
   # Replace with the actual package build output folder produced by your workspace package
   publish = "artifacts/<PACKAGE_PATH>/<PUBLISH_DIR>"
 
@@ -21,8 +26,9 @@
   force = true
 
 # NOTES:
-# - If you prefer building only the package, set the Netlify "Base directory" to
-#   artifacts/<PACKAGE_PATH>, then change `command` to "corepack enable && pnpm install && pnpm run build"
+# - If you prefer building only the package and want Netlify to run commands from inside the package,
+#   set the Netlify "Base directory" to artifacts/<PACKAGE_PATH> and change `command` to:
+#     corepack enable && pnpm install --frozen-lockfile && pnpm run build
 #   and set publish = "<PUBLISH_DIR>".
 # - After committing, update the `publish` path above (or Base directory) in Netlify Site settings
 #   to the folder that contains index.html produced by your build (run `find . -name index.html` locally
