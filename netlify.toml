@@ -1,14 +1,12 @@
 # netlify.toml - Netlify configuration for a pnpm workspace
-# This version avoids running the workspace root typecheck/build which fails
-# when non-artifact workspace packages (e.g., lib/*) are not present on Netlify.
-# It will build any packages found under artifacts/ or lib/ and then copy the first
-# produced build output containing index.html into a single `netlify_publish/` folder
-# which Netlify will publish. This avoids needing to know the exact package path.
+# This version dynamically finds packages under artifacts/ and lib/, builds them,
+# then copies the first produced build output containing index.html into netlify_publish/
+# which Netlify publishes. It also copies a repo-level _redirects if present.
 
 [build]
   # Enable corepack (pnpm), install dependencies, then build discovered packages under artifacts/ or lib/
-  # After building, find the first index.html and copy its directory contents to netlify_publish/ for publishing.
-  command = "corepack enable && pnpm install --frozen-lockfile && for d in $(find artifacts lib -maxdepth 2 -type f -name package.json -print 2>/dev/null | xargs -n1 dirname); do echo \"Building $d\"; (cd $d && pnpm run build) || true; done && mkdir -p netlify_publish && f=$(find . -type f -name index.html | head -n1) && if [ -n \"$f\" ]; then d=$(dirname \"$f\"); cp -a \"$d/.\" netlify_publish/; else echo \"No index.html found after build\"; exit 1; fi"
+  # We avoid running the workspace root build (which runs a global typecheck that fails on Netlify).
+  command = "corepack enable && pnpm install --frozen-lockfile && for d in $(find artifacts lib -maxdepth 2 -type f -name package.json -print 2>/dev/null | xargs -n1 dirname); do echo \"Building $d\"; (cd $d && pnpm run build) || true; done && mkdir -p netlify_publish && f=$(find . -type f -name index.html | head -n1) && if [ -n \"$f\" ]; then d=$(dirname \"$f\"); cp -a \"$d/.\" netlify_publish/; if [ -f ./_redirects ]; then cp ./_redirects netlify_publish/_redirects; fi; else echo \"No index.html found after build\"; exit 1; fi"
 
   # Publish the generated folder that contains the built site
   publish = "netlify_publish"
@@ -25,9 +23,8 @@
   force = true
 
 # NOTES:
-# - This approach dynamically finds packages under artifacts/ and lib/ and builds them, then copies the first
-#   build output that contains index.html into netlify_publish/ for Netlify to serve. It avoids running the
-#   workspace root `pnpm run build` which runs a global typecheck and fails on Netlify (TS5083).
 # - If you prefer a deterministic configuration, set the Netlify "Base directory" to the specific package
 #   (e.g., artifacts/landing), and change the build command to: "corepack enable && pnpm install --frozen-lockfile && pnpm run build"
 #   and set publish to that package's output (e.g., "dist").
+# - This config assumes at least one package under artifacts/ or lib/ produces an index.html as part of its build.
+# - The repo-level _redirects file (if present) will be copied into the published output so SPA redirects are active.
